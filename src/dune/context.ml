@@ -83,6 +83,7 @@ module T = struct
     ; ocamldep : Action.Prog.t
     ; ocamlmklib : Action.Prog.t
     ; ocamlobjinfo : Action.Prog.t
+    ; bsc : Action.Prog.t
     ; env : Env.t
     ; findlib : Findlib.t
     ; findlib_toolchain : Context_name.t option
@@ -120,6 +121,7 @@ module T = struct
       ; ("ocamlopt", Action.Prog.to_dyn t.ocamlopt)
       ; ("ocamldep", Action.Prog.to_dyn t.ocamldep)
       ; ("ocamlmklib", Action.Prog.to_dyn t.ocamlmklib)
+      ; ("bsc", Action.Prog.to_dyn t.bsc)
       ; ("env", Env.to_dyn (Env.diff t.env Env.initial))
       ; ("findlib_path", list path (Findlib.paths t.findlib))
       ; ("arch_sixtyfour", Bool t.arch_sixtyfour)
@@ -489,13 +491,14 @@ let create ~(kind : Kind.t) ~path ~env ~env_nodes ~name ~merlin ~targets
     in
     if Option.is_some fdo_target_exe then
       check_fdo_support lib_config.has_native ocfg ~name;
-    let ocaml =
-      let program = "ocaml" in
+    let get_prog_using_which program =
       match which program with
       | Some s -> Ok s
       | None ->
         Error (Action.Prog.Not_found.create ~context:name ~program ~loc:None ())
     in
+    let ocaml = get_prog_using_which "ocaml" in
+    let bsc = get_prog_using_which "bsc" in
     let ocaml_bin = dir in
     let install_prefix =
       Memo.lazy_async ~cutoff:Path.equal (fun () ->
@@ -532,6 +535,7 @@ let create ~(kind : Kind.t) ~path ~env ~env_nodes ~name ~merlin ~targets
       ; ocamldep = get_ocaml_tool "ocamldep"
       ; ocamlmklib = get_ocaml_tool "ocamlmklib"
       ; ocamlobjinfo = get_ocaml_tool "ocamlobjinfo"
+      ; bsc
       ; env
       ; findlib =
           Findlib.create ~stdlib_dir ~paths:findlib_paths ~version ~lib_config
@@ -827,6 +831,7 @@ let install_ocaml_libdir t =
       Some (Path.of_filename_relative_to_initial_cwd s)
     | None -> Fiber.return None )
 
+(* TODO(kji): Modify this to also use [t.bsc]. We might need to add a new mode. *)
 let compiler t (mode : Mode.t) =
   match mode with
   | Byte -> Ok t.ocamlc

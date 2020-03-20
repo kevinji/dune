@@ -9,6 +9,9 @@ module Paths = struct
 
   let library_byte_dir ~obj_dir = Path.Build.relative obj_dir "byte"
 
+  let library_bucklescript_dir ~obj_dir =
+    Path.Build.relative obj_dir "bucklescript"
+
   let library_public_cmi_dir ~obj_dir = Path.Build.relative obj_dir "public_cmi"
 
   (* Use "eobjs" rather than "objs" to avoid a potential conflict with a library
@@ -47,7 +50,7 @@ module External = struct
     | Cmi, Private, None ->
       Code_error.raise "External.cm_dir" [ ("t", to_dyn t) ]
     | Cmi, Public, _
-    | (Cmo | Cmx), _, _ ->
+    | (Cmj | Cmo | Cmx), _, _ ->
       t.public_dir
 
   let encode { public_dir; private_dir } =
@@ -70,6 +73,8 @@ module External = struct
 
   let native_dir t = t.public_dir
 
+  let bucklescript_dir t = t.public_dir
+
   let dir t = t.public_dir
 
   let obj_dir t = t.public_dir
@@ -85,6 +90,7 @@ module External = struct
     match cm_kind with
     | Cmx -> native_dir t
     | Cmo -> byte_dir t
+    | Cmj -> bucklescript_dir t
     | Cmi -> public_cmi_dir t
 end
 
@@ -94,24 +100,29 @@ module Local = struct
     ; obj_dir : Path.Build.t
     ; native_dir : Path.Build.t
     ; byte_dir : Path.Build.t
+    ; bucklescript_dir : Path.Build.t
     ; public_cmi_dir : Path.Build.t option
     }
 
-  let to_dyn { dir; obj_dir; native_dir; byte_dir; public_cmi_dir } =
+  let to_dyn
+      { dir; obj_dir; native_dir; byte_dir; bucklescript_dir; public_cmi_dir } =
     let open Dyn.Encoder in
     record
       [ ("dir", Path.Build.to_dyn dir)
       ; ("obj_dir", Path.Build.to_dyn obj_dir)
       ; ("native_dir", Path.Build.to_dyn native_dir)
       ; ("byte_dir", Path.Build.to_dyn byte_dir)
+      ; ("bucklescript_dir", Path.Build.to_dyn bucklescript_dir)
       ; ("public_cmi_dir", option Path.Build.to_dyn public_cmi_dir)
       ]
 
-  let make ~dir ~obj_dir ~native_dir ~byte_dir ~public_cmi_dir =
-    { dir; obj_dir; native_dir; byte_dir; public_cmi_dir }
+  let make ~dir ~obj_dir ~native_dir ~byte_dir ~bucklescript_dir ~public_cmi_dir
+      =
+    { dir; obj_dir; native_dir; byte_dir; bucklescript_dir; public_cmi_dir }
 
   let need_dedicated_public_dir t = Option.is_some t.public_cmi_dir
 
+  (* TODO(kji): Maybe this should be [t.bucklescript_dir] sometimes. *)
   let public_cmi_dir t = Option.value ~default:t.byte_dir t.public_cmi_dir
 
   let dir t = t.dir
@@ -121,6 +132,8 @@ module Local = struct
   let byte_dir t = t.byte_dir
 
   let native_dir t = t.native_dir
+
+  let bucklescript_dir t = t.bucklescript_dir
 
   let odoc_dir t = t.byte_dir
 
@@ -141,6 +154,7 @@ module Local = struct
     make ~dir ~obj_dir
       ~native_dir:(Paths.library_native_dir ~obj_dir)
       ~byte_dir:(Paths.library_byte_dir ~obj_dir)
+      ~bucklescript_dir:(Paths.library_bucklescript_dir ~obj_dir)
       ~public_cmi_dir
 
   let make_exe ~dir ~name =
@@ -148,12 +162,14 @@ module Local = struct
     make ~dir ~obj_dir
       ~native_dir:(Paths.library_native_dir ~obj_dir)
       ~byte_dir:(Paths.library_byte_dir ~obj_dir)
+      ~bucklescript_dir:(Paths.library_bucklescript_dir ~obj_dir)
       ~public_cmi_dir:None
 
   let cm_dir t cm_kind _ =
     match cm_kind with
     | Cm_kind.Cmx -> native_dir t
     | Cmo
+    | Cmj
     | Cmi ->
       byte_dir t
 
@@ -161,6 +177,7 @@ module Local = struct
     match cm_kind with
     | Cmx -> native_dir t
     | Cmo -> byte_dir t
+    | Cmj -> bucklescript_dir t
     | Cmi -> public_cmi_dir t
 end
 
@@ -209,6 +226,9 @@ let public_cmi_dir = get_path ~l:Local.public_cmi_dir ~e:External.public_cmi_dir
 let byte_dir = get_path ~l:Local.byte_dir ~e:External.byte_dir
 
 let native_dir = get_path ~l:Local.native_dir ~e:External.native_dir
+
+let bucklescript_dir =
+  get_path ~l:Local.bucklescript_dir ~e:External.bucklescript_dir
 
 let dir = get_path ~l:Local.dir ~e:External.dir
 
@@ -303,6 +323,7 @@ module Module = struct
     match kind with
     | Cmx
     | Cmo
+    | Cmj
       when not has_impl ->
       None
     | _ -> Some (cm_file_unsafe t m ~kind)
@@ -321,6 +342,7 @@ module Module = struct
     match kind with
     | Cmx
     | Cmo
+    | Cmj
       when not has_impl ->
       None
     | Cmi when is_private -> None

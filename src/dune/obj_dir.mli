@@ -43,6 +43,9 @@ val native_dir : 'path t -> 'path
 (** The private compiled byte file directories, and all cmi *)
 val byte_dir : 'path t -> 'path
 
+(** The private compiled BuckleScript file directory *)
+val bucklescript_dir : 'path t -> 'path
+
 val all_cmis : 'path t -> 'path list
 
 (** The public compiled cmi file directory *)

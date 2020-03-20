@@ -25,6 +25,7 @@ let to_dyn t =
   let open Dyn.Encoder in
   constr (to_string t) []
 
+(* TODO(kji): This needs to allow Cmj. *)
 let compiled_unit_ext = choose (Cm_kind.ext Cmo) (Cm_kind.ext Cmx)
 
 let compiled_lib_ext = choose ".cma" ".cmxa"
@@ -33,12 +34,15 @@ let plugin_ext = choose ".cma" ".cmxs"
 
 let variant = choose Variant.byte Variant.native
 
+(* TODO(kji): This needs to allow Cmj. *)
 let cm_kind = choose Cm_kind.Cmo Cmx
 
+(* TODO(kji): This needs to allow ".bs.js". *)
 let exe_ext = choose ".bc" ".exe"
 
 let of_cm_kind : Cm_kind.t -> t = function
   | Cmi
+  | Cmj
   | Cmo ->
     Byte
   | Cmx -> Native

@@ -84,11 +84,11 @@ let build_cm cctx ~dep_graphs ~precompiled_cmi ~cm_kind (m : Module.t) ~phase =
         (* If there is no mli, [ocamlY -c file.ml] produces both the .cmY and
            .cmi. We choose to use ocamlc to produce the cmi and to produce the
            cmx we have to wait to avoid race conditions. *)
-        | Cmo, None, false ->
+        | (Cmj | Cmo), None, false ->
           copy_interface ~dir ~obj_dir ~sctx m;
           ([], [], [ Obj_dir.Module.cm_file_unsafe obj_dir m ~kind:Cmi ])
-        | Cmo, None, true
-        | (Cmo | Cmx), _, _ ->
+        | (Cmj | Cmo), None, true
+        | (Cmj | Cmo | Cmx), _, _ ->
           ( force_read_cmi src
           , [ Path.build (Obj_dir.Module.cm_file_unsafe obj_dir m ~kind:Cmi) ]
           , [] )
@@ -106,6 +106,7 @@ let build_cm cctx ~dep_graphs ~precompiled_cmi ~cm_kind (m : Module.t) ~phase =
       | None ->
         obj :: other_targets )
     | Cmi
+    | Cmj
     | Cmo ->
       other_targets
   in
@@ -121,6 +122,9 @@ let build_cm cctx ~dep_graphs ~precompiled_cmi ~cm_kind (m : Module.t) ~phase =
     | Cmo ->
       let fn = Option.value_exn (Obj_dir.Module.cmt_file obj_dir m ~ml_kind) in
       (fn :: other_targets, A "-bin-annot")
+    | Cmj ->
+      let fn = Option.value_exn (Obj_dir.Module.cmt_file obj_dir m ~ml_kind) in
+      (fn :: other_targets, Command.Args.empty)
   in
   let opaque_arg =
     let intf_only = cm_kind = Cmi && not (Module.has m ~ml_kind:Impl) in
@@ -132,6 +136,7 @@ let build_cm cctx ~dep_graphs ~precompiled_cmi ~cm_kind (m : Module.t) ~phase =
   in
   let dir = ctx.build_dir in
   let flags =
+    (* TODO(kji): Disable these flags for bucklescript. *)
     let flags = Ocaml_flags.get (CC.flags cctx) mode in
     match Module.pp_flags m with
     | None -> flags
@@ -195,6 +200,7 @@ let build_cm cctx ~dep_graphs ~precompiled_cmi ~cm_kind (m : Module.t) ~phase =
   |> Option.value ~default:()
 
 let build_module ~dep_graphs ?(precompiled_cmi = false) cctx m =
+  (* TODO(kji): This should also support Cmj. *)
   build_cm cctx m ~dep_graphs ~precompiled_cmi ~cm_kind:Cmo ~phase:None;
   let ctx = CC.context cctx in
   let can_split =
@@ -215,6 +221,7 @@ let build_module ~dep_graphs ?(precompiled_cmi = false) cctx m =
       ~phase:(Some Fdo.Emit) );
   if not precompiled_cmi then
     build_cm cctx m ~dep_graphs ~precompiled_cmi ~cm_kind:Cmi ~phase:None;
+  (* TODO(kji): Add a bucklescript section. *)
   Compilation_context.js_of_ocaml cctx
   |> Option.iter ~f:(fun js_of_ocaml ->
          (* Build *.cmo.js *)
@@ -226,6 +233,7 @@ let build_module ~dep_graphs ?(precompiled_cmi = false) cctx m =
          SC.add_rules sctx ~dir
            (Js_of_ocaml_rules.build_cm cctx ~js_of_ocaml ~src ~target))
 
+(* TODO(kji): This should support bsc. *)
 let ocamlc_i ?(flags = []) ~dep_graphs cctx (m : Module.t) ~output =
   let sctx = CC.super_context cctx in
   let obj_dir = CC.obj_dir cctx in

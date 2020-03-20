@@ -2,6 +2,7 @@ open Stdune
 
 type t =
   | Cmi
+  | Cmj
   | Cmo
   | Cmx
 
@@ -20,6 +21,7 @@ module Dict : sig
 
   type 'a t =
     { cmi : 'a
+    ; cmj : 'a
     ; cmo : 'a
     ; cmx : 'a
     }

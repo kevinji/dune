@@ -34,7 +34,11 @@ module Includes = struct
                      ~groups:[ Lib_file_deps.Group.Cmi; Cmx ] )
              ])
       in
-      { cmi = cmi_includes; cmo = cmi_includes; cmx = cmx_includes }
+      { cmi = cmi_includes
+      ; cmj = cmi_includes
+      ; cmo = cmi_includes
+      ; cmx = cmx_includes
+      }
 
   let empty = Cm_kind.Dict.make_all Command.Args.empty
 end
@@ -49,6 +53,7 @@ let eval_opaque (context : Context.t) = function
     Profile.is_dev context.profile
     && Ocaml_version.supports_opaque_for_mli context.version
 
+(* TODO(kji): Add a [bucklescript] section. *)
 type t =
   { super_context : Super_context.t
   ; scope : Scope.t
